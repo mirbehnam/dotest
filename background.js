@@ -69,15 +69,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // Pause download
     if (request.type === 'pause-download') {
-        downloadManager.pauseDownload(request.downloadId);
-        sendResponse({ success: true });
+        const result = downloadManager.pauseDownload(request.downloadId);
+        sendResponse({ success: result });
         return false;
     }
 
     // Resume download
     if (request.type === 'resume-download') {
-        downloadManager.resumeDownload(request.downloadId);
-        sendResponse({ success: true });
+        const result = downloadManager.resumeDownload(request.downloadId);
+        sendResponse({ success: result });
         return false;
     }
 

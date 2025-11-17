@@ -56,6 +56,16 @@ class DownloadManager {
 
     async multiThreadDownload(downloadId) {
         const download = this.downloads.get(downloadId);
+
+        // Check if already paused during initialization
+        if (download.status === 'paused') {
+            console.log(`Download ${downloadId} was paused during initialization, waiting...`);
+            // Wait until resumed
+            while (download.status === 'paused') {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
         const chunkSize = Math.ceil(download.totalSize / this.maxChunks);
 
         // Create chunks
@@ -76,7 +86,11 @@ class DownloadManager {
         }
 
         download.chunks = chunks;
-        download.status = 'downloading';
+
+        // Only change to downloading if not paused
+        if (download.status !== 'paused') {
+            download.status = 'downloading';
+        }
         this.notifyProgress(downloadId);
 
         // Download chunks in parallel
@@ -240,7 +254,19 @@ class DownloadManager {
         const download = this.downloads.get(downloadId);
 
         try {
-            download.status = 'downloading';
+            // Check if paused during initialization
+            if (download.status === 'paused') {
+                console.log(`Download ${downloadId} was paused during initialization, waiting...`);
+                // Wait until resumed
+                while (download.status === 'paused') {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+
+            // Only change to downloading if not paused
+            if (download.status !== 'paused') {
+                download.status = 'downloading';
+            }
             this.notifyProgress(downloadId);
 
             const response = await fetch(url);
@@ -343,24 +369,41 @@ class DownloadManager {
 
     pauseDownload(downloadId) {
         const download = this.downloads.get(downloadId);
-        if (download && download.status === 'downloading') {
-            download.status = 'paused';
-            console.log(`Download ${downloadId} paused`);
-            this.notifyProgress(downloadId);
-        } else {
-            console.log(`Cannot pause download ${downloadId}, current status: ${download?.status}`);
+        if (download) {
+            // Allow pausing in any state except completed, error, or already paused
+            if (download.status === 'downloading' || download.status === 'initializing') {
+                download.status = 'paused';
+                console.log(`Download ${downloadId} paused from ${download.status}`);
+                this.notifyProgress(downloadId);
+                return true;
+            } else if (download.status === 'paused') {
+                console.log(`Download ${downloadId} already paused`);
+                return true;
+            } else {
+                console.log(`Cannot pause download ${downloadId}, current status: ${download.status}`);
+                return false;
+            }
         }
+        return false;
     }
 
     resumeDownload(downloadId) {
         const download = this.downloads.get(downloadId);
-        if (download && download.status === 'paused') {
-            download.status = 'downloading';
-            console.log(`Download ${downloadId} resumed`);
-            this.notifyProgress(downloadId);
-        } else {
-            console.log(`Cannot resume download ${downloadId}, current status: ${download?.status}`);
+        if (download) {
+            if (download.status === 'paused') {
+                download.status = 'downloading';
+                console.log(`Download ${downloadId} resumed`);
+                this.notifyProgress(downloadId);
+                return true;
+            } else if (download.status === 'downloading') {
+                console.log(`Download ${downloadId} already downloading`);
+                return true;
+            } else {
+                console.log(`Cannot resume download ${downloadId}, current status: ${download.status}`);
+                return false;
+            }
         }
+        return false;
     }
 
     cancelDownload(downloadId) {

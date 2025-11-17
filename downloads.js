@@ -186,7 +186,8 @@ function updateDownloadItem(item, download) {
 function getControlButtons(download) {
     const buttons = [];
 
-    if (download.status === 'downloading') {
+    // Show pause button for downloading or initializing
+    if (download.status === 'downloading' || download.status === 'initializing') {
         buttons.push(`
             <button class="control-btn pause-btn" data-action="pause" title="توقف">
                 ⏸️
@@ -194,6 +195,7 @@ function getControlButtons(download) {
         `);
     }
 
+    // Show resume button for paused
     if (download.status === 'paused') {
         buttons.push(`
             <button class="control-btn resume-btn" data-action="resume" title="ادامه">
@@ -202,7 +204,8 @@ function getControlButtons(download) {
         `);
     }
 
-    if (download.status === 'downloading' || download.status === 'paused') {
+    // Show cancel button for active downloads
+    if (download.status === 'downloading' || download.status === 'paused' || download.status === 'initializing') {
         buttons.push(`
             <button class="control-btn cancel-btn" data-action="cancel" title="لغو">
                 ❌
@@ -213,6 +216,10 @@ function getControlButtons(download) {
     return buttons.join('');
 }
 
+// Prevent multiple rapid clicks
+const clickCooldown = new Map();
+const COOLDOWN_MS = 500;
+
 function handleControlClick(event) {
     const button = event.target.closest('.control-btn');
     if (!button) return;
@@ -220,18 +227,51 @@ function handleControlClick(event) {
     const action = button.dataset.action;
     const downloadId = button.closest('.download-controls').dataset.downloadId;
 
+    // Check cooldown
+    const cooldownKey = `${downloadId}-${action}`;
+    const lastClick = clickCooldown.get(cooldownKey);
+    const now = Date.now();
+
+    if (lastClick && (now - lastClick) < COOLDOWN_MS) {
+        console.log(`Ignoring rapid click on ${action} for ${downloadId}`);
+        return;
+    }
+
+    clickCooldown.set(cooldownKey, now);
+
+    // Disable button temporarily
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.style.opacity = '0.5';
+
     switch (action) {
         case 'pause':
+            button.innerHTML = '⏸️';
             chrome.runtime.sendMessage({
                 type: 'pause-download',
                 downloadId: downloadId
+            }, (response) => {
+                button.disabled = false;
+                button.style.opacity = '1';
+                if (!response || !response.success) {
+                    console.error('Failed to pause download');
+                    button.innerHTML = originalText;
+                }
             });
             break;
 
         case 'resume':
+            button.innerHTML = '▶️';
             chrome.runtime.sendMessage({
                 type: 'resume-download',
                 downloadId: downloadId
+            }, (response) => {
+                button.disabled = false;
+                button.style.opacity = '1';
+                if (!response || !response.success) {
+                    console.error('Failed to resume download');
+                    button.innerHTML = originalText;
+                }
             });
             break;
 
@@ -250,6 +290,9 @@ function handleControlClick(event) {
                         emptyState.style.display = 'block';
                     }
                 }
+            } else {
+                button.disabled = false;
+                button.style.opacity = '1';
             }
             break;
     }
