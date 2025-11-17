@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Download Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎬 مدیریت دانلود ویدیو</h1>
+        </header>
+
+        <div class="controls">
+            <button id="scanButton" class="btn btn-primary">
+                🔍 اسکن صفحه
+            </button>
+            <button id="refreshButton" class="btn btn-secondary">
+                🔄 بروزرسانی
+            </button>
+        </div>
+
+        <div id="statusMessage" class="status-message"></div>
+
+        <div class="filter-section">
+            <h3>فیلتر بر اساس:</h3>
+            <div class="filter-buttons">
+                <button class="filter-btn" data-filter="all">همه</button>
+                <button class="filter-btn" data-filter="mkv">MKV</button>
+                <button class="filter-btn" data-filter="mp4">MP4</button>
+                <button class="filter-btn" data-filter="x265">x265</button>
+                <button class="filter-btn" data-filter="x264">x264</button>
+                <button class="filter-btn" data-filter="1080">1080p</button>
+                <button class="filter-btn" data-filter="720">720p</button>
+                <button class="filter-btn" data-filter="480">480p</button>
+            </div>
+        </div>
+
+        <div class="video-groups" id="videoGroups">
+            <div class="empty-state">
+                <p>هیچ لینک ویدیویی پیدا نشد</p>
+                <p class="hint">روی دکمه "اسکن صفحه" کلیک کنید تا لینک‌ها استخراج شوند</p>
+            </div>
+        </div>
+
+        <div class="action-bar" id="actionBar" style="display: none;">
+            <div class="selection-info">
+                <span id="selectedCount">0</span> فایل انتخاب شده
+            </div>
+            <div class="action-buttons">
+                <button id="selectAllButton" class="btn btn-secondary">انتخاب همه</button>
+                <button id="deselectAllButton" class="btn btn-secondary">لغو انتخاب</button>
+                <button id="downloadButton" class="btn btn-success">⬇️ دانلود</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

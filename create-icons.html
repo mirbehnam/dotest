@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Icon Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>ایجاد آیکون‌های افزونه</h1>
+    <p>روی دکمه‌های زیر کلیک کنید تا آیکون‌ها ایجاد و دانلود شوند</p>
+
+    <div>
+        <canvas id="canvas16" width="16" height="16"></canvas>
+        <button onclick="downloadIcon(16)">دانلود 16x16</button>
+    </div>
+
+    <div>
+        <canvas id="canvas48" width="48" height="48"></canvas>
+        <button onclick="downloadIcon(48)">دانلود 48x48</button>
+    </div>
+
+    <div>
+        <canvas id="canvas128" width="128" height="128"></canvas>
+        <button onclick="downloadIcon(128)">دانلود 128x128</button>
+    </div>
+
+    <script>
+        function createIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const ctx = canvas.getContext('2d');
+
+            // Create gradient background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+
+            // Draw circle background
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size/2 - 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw play icon
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = size * 0.015;
+
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const playSize = size * 0.3;
+
+            ctx.beginPath();
+            ctx.moveTo(centerX - playSize/2, centerY - playSize);
+            ctx.lineTo(centerX - playSize/2, centerY + playSize);
+            ctx.lineTo(centerX + playSize, centerY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw download arrow
+            const arrowY = size * 0.75;
+            const arrowSize = size * 0.15;
+
+            ctx.lineWidth = size * 0.04;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Arrow line
+            ctx.beginPath();
+            ctx.moveTo(centerX, arrowY - arrowSize);
+            ctx.lineTo(centerX, arrowY + arrowSize/2);
+            ctx.stroke();
+
+            // Arrow head
+            ctx.beginPath();
+            ctx.moveTo(centerX - arrowSize/2, arrowY);
+            ctx.lineTo(centerX, arrowY + arrowSize/2);
+            ctx.lineTo(centerX + arrowSize/2, arrowY);
+            ctx.stroke();
+        }
+
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const link = document.createElement('a');
+            link.download = `icon${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Create icons on page load
+        window.onload = function() {
+            createIcon(16);
+            createIcon(48);
+            createIcon(128);
+        };
+    </script>
+</body>
+</html>
