@@ -56,6 +56,10 @@ async function scanPage() {
 
             if (response && response.success) {
                 allVideoLinks = response.links;
+                // Add original index to each video
+                allVideoLinks.forEach((video, idx) => {
+                    video.originalIndex = idx;
+                });
                 filteredVideoLinks = [...allVideoLinks];
 
                 if (allVideoLinks.length > 0) {
@@ -111,7 +115,7 @@ function displayVideoGroups() {
 function groupVideos(videos) {
     const groups = {};
 
-    videos.forEach((video, index) => {
+    videos.forEach((video) => {
         // Create a group key based on format, codec, and resolution
         const format = video.format || 'unknown';
         const codec = video.codec || 'unknown';
@@ -123,7 +127,7 @@ function groupVideos(videos) {
             groups[groupKey] = [];
         }
 
-        video.index = index; // Store original index
+        // Keep the originalIndex that was set in scanPage
         groups[groupKey].push(video);
     });
 
@@ -168,7 +172,7 @@ function createVideoItem(video) {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.className = 'video-checkbox';
-    checkbox.dataset.index = video.index;
+    checkbox.dataset.index = video.originalIndex;
     checkbox.addEventListener('change', updateSelectedCount);
 
     const infoDiv = document.createElement('div');
