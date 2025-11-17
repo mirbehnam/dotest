@@ -1,117 +1,152 @@
-// Background service worker for Video Download Manager
+// Background service worker for Video Download Manager with Multi-threading support
+
+// Import the download manager
+importScripts('download-manager.js');
+
+// Create download manager instance
+const downloadManager = new DownloadManager();
 
 // Install event
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === 'install') {
         console.log('Video Download Manager installed successfully!');
+
+        // Create context menu
+        chrome.contextMenus.create({
+            id: 'downloadVideo',
+            title: 'دانلود با Video Download Manager',
+            contexts: ['link'],
+            targetUrlPatterns: [
+                '*://*/*.mkv*',
+                '*://*/*.mp4*',
+                '*://*/*.avi*',
+                '*://*/*.mov*',
+                '*://*/*.wmv*',
+                '*://*/*.flv*',
+                '*://*/*.webm*',
+                '*://*/*.m4v*'
+            ]
+        });
     } else if (details.reason === 'update') {
         console.log('Video Download Manager updated to version ' + chrome.runtime.getManifest().version);
     }
 });
 
-// Listen for download events
-chrome.downloads.onChanged.addListener((delta) => {
-    if (delta.state) {
-        if (delta.state.current === 'complete') {
-            console.log('Download completed:', delta.id);
-        } else if (delta.state.current === 'interrupted') {
-            console.log('Download interrupted:', delta.id);
-        }
-    }
-
-    if (delta.error) {
-        console.error('Download error:', delta.error.current);
-    }
-});
-
-// Handle messages from content scripts or popup
+// Handle messages from popup and content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'downloadVideo') {
-        chrome.downloads.download({
-            url: request.url,
-            filename: request.filename || undefined,
-            saveAs: false
-        }, (downloadId) => {
-            if (chrome.runtime.lastError) {
-                sendResponse({ success: false, error: chrome.runtime.lastError.message });
-            } else {
-                sendResponse({ success: true, downloadId: downloadId });
-            }
-        });
-        return true; // Keep the message channel open for async response
-    }
+    // Start downloads (multi-threaded)
+    if (request.type === 'start-downloads') {
+        const videos = request.videos || [];
 
-    if (request.action === 'batchDownload') {
-        const downloads = request.downloads || [];
-        const results = [];
-
-        // Download files sequentially
         (async () => {
-            for (const download of downloads) {
-                try {
-                    const downloadId = await new Promise((resolve, reject) => {
-                        chrome.downloads.download({
-                            url: download.url,
-                            filename: download.filename || undefined,
-                            saveAs: false
-                        }, (id) => {
-                            if (chrome.runtime.lastError) {
-                                reject(chrome.runtime.lastError);
-                            } else {
-                                resolve(id);
-                            }
-                        });
+            try {
+                const downloadIds = [];
+
+                for (const video of videos) {
+                    const downloadId = await downloadManager.startDownload({
+                        url: video.url,
+                        filename: video.filename
                     });
-
-                    results.push({ success: true, downloadId: downloadId, url: download.url });
-
-                    // Add a small delay between downloads
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                } catch (error) {
-                    results.push({ success: false, error: error.message, url: download.url });
+                    downloadIds.push(downloadId);
                 }
-            }
 
-            sendResponse({ success: true, results: results });
+                sendResponse({ success: true, downloadIds: downloadIds });
+            } catch (error) {
+                console.error('Download error:', error);
+                sendResponse({ success: false, error: error.message });
+            }
         })();
 
-        return true; // Keep the message channel open for async response
+        return true; // Keep message channel open for async response
+    }
+
+    // Get all downloads
+    if (request.type === 'get-all-downloads') {
+        const downloads = downloadManager.getAllDownloads();
+        sendResponse({ success: true, downloads: downloads });
+        return false;
+    }
+
+    // Pause download
+    if (request.type === 'pause-download') {
+        downloadManager.pauseDownload(request.downloadId);
+        sendResponse({ success: true });
+        return false;
+    }
+
+    // Resume download
+    if (request.type === 'resume-download') {
+        downloadManager.resumeDownload(request.downloadId);
+        sendResponse({ success: true });
+        return false;
+    }
+
+    // Cancel download
+    if (request.type === 'cancel-download') {
+        downloadManager.cancelDownload(request.downloadId);
+        sendResponse({ success: true });
+        return false;
+    }
+
+    // Clear completed downloads
+    if (request.type === 'clear-completed-downloads') {
+        const allDownloads = downloadManager.getAllDownloads();
+        allDownloads.forEach(download => {
+            if (download.status === 'completed') {
+                downloadManager.cancelDownload(download.id);
+            }
+        });
+        sendResponse({ success: true });
+        return false;
+    }
+
+    // Legacy support for old download method
+    if (request.action === 'downloadVideo') {
+        (async () => {
+            try {
+                const downloadId = await downloadManager.startDownload({
+                    url: request.url,
+                    filename: request.filename || request.url.split('/').pop()
+                });
+                sendResponse({ success: true, downloadId: downloadId });
+            } catch (error) {
+                sendResponse({ success: false, error: error.message });
+            }
+        })();
+        return true;
     }
 });
 
-// Context menu for right-click download (optional enhancement)
-chrome.runtime.onInstalled.addListener(() => {
-    chrome.contextMenus.create({
-        id: 'downloadVideo',
-        title: 'دانلود با Video Download Manager',
-        contexts: ['link'],
-        targetUrlPatterns: [
-            '*://*/*.mkv*',
-            '*://*/*.mp4*',
-            '*://*/*.avi*',
-            '*://*/*.mov*',
-            '*://*/*.wmv*',
-            '*://*/*.flv*',
-            '*://*/*.webm*',
-            '*://*/*.m4v*'
-        ]
-    });
-});
-
+// Context menu handler
 chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === 'downloadVideo' && info.linkUrl) {
         const filename = info.linkUrl.split('/').pop().split('?')[0];
 
-        chrome.downloads.download({
+        downloadManager.startDownload({
             url: info.linkUrl,
-            filename: filename || undefined,
-            saveAs: true
-        }, (downloadId) => {
-            if (chrome.runtime.lastError) {
-                console.error('Download failed:', chrome.runtime.lastError);
-            } else {
-                console.log('Download started:', downloadId);
-            }
+            filename: filename
+        }).then(() => {
+            console.log('Download started from context menu');
+
+            // Open downloads page
+            chrome.tabs.create({ url: chrome.runtime.getURL('downloads.html') });
+        }).catch(error => {
+            console.error('Download failed:', error);
         });
+    }
+});
+
+// Listen for Chrome download events (for fallback downloads)
+chrome.downloads.onChanged.addListener((delta) => {
+    if (delta.state) {
+        if (delta.state.current === 'complete') {
+            console.log('Chrome download completed:', delta.id);
+        } else if (delta.state.current === 'interrupted') {
+            console.log('Chrome download interrupted:', delta.id);
+        }
+    }
+
+    if (delta.error) {
+        console.error('Chrome download error:', delta.error.current);
     }
 });

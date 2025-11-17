@@ -1,0 +1,19 @@
+{
+  "name": "dotest",
+  "version": "1.0.0",
+  "description": "افزونه کروم برای استخراج و مدیریت دانلود لینک‌های ویدیویی از سایت‌های دانلود",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:43739/git/mirbehnam/dotest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "canvas": "^3.2.0"
+  }
+}

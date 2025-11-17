@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مدیریت دانلودها</title>
+    <link rel="stylesheet" href="downloads-styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📥 مدیریت دانلودها</h1>
+            <button id="clearCompletedBtn" class="btn btn-secondary">پاک کردن تکمیل شده‌ها</button>
+        </header>
+
+        <div class="downloads-container" id="downloadsContainer">
+            <div class="empty-state" id="emptyState">
+                <div class="empty-icon">📭</div>
+                <p>هیچ دانلودی در حال انجام نیست</p>
+                <p class="hint">دانلودهای جدید به صورت خودکار اینجا نمایش داده می‌شوند</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="downloads.js"></script>
+</body>
+</html>

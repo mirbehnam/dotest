@@ -7,6 +7,7 @@ let activeFilter = 'all';
 // DOM Elements
 const scanButton = document.getElementById('scanButton');
 const refreshButton = document.getElementById('refreshButton');
+const downloadsPageButton = document.getElementById('downloadsPageButton');
 const videoGroupsContainer = document.getElementById('videoGroups');
 const statusMessage = document.getElementById('statusMessage');
 const actionBar = document.getElementById('actionBar');
@@ -19,6 +20,7 @@ const filterButtons = document.querySelectorAll('.filter-btn');
 // Event Listeners
 scanButton.addEventListener('click', scanPage);
 refreshButton.addEventListener('click', scanPage);
+downloadsPageButton.addEventListener('click', openDownloadsPage);
 selectAllButton.addEventListener('click', selectAll);
 deselectAllButton.addEventListener('click', deselectAll);
 downloadButton.addEventListener('click', downloadSelected);
@@ -32,6 +34,10 @@ filterButtons.forEach(btn => {
 
 // Initialize
 showStatus('آماده اسکن صفحه', 'info');
+
+function openDownloadsPage() {
+    chrome.tabs.create({ url: chrome.runtime.getURL('downloads.html') });
+}
 
 async function scanPage() {
     showStatus('در حال اسکن صفحه...', 'info');
@@ -294,49 +300,31 @@ async function downloadSelected() {
         selectedVideos.push(allVideoLinks[index]);
     });
 
-    showStatus(`در حال دانلود ${selectedVideos.length} فایل...`, 'info');
+    showStatus(`شروع دانلود ${selectedVideos.length} فایل...`, 'info');
     downloadButton.disabled = true;
 
-    // Download videos sequentially with delay
-    let downloadedCount = 0;
-    for (const video of selectedVideos) {
-        try {
-            await downloadVideo(video);
-            downloadedCount++;
-            showStatus(`دانلود ${downloadedCount} از ${selectedVideos.length} فایل...`, 'info');
+    // Send videos to background script for multi-threaded download
+    chrome.runtime.sendMessage({
+        type: 'start-downloads',
+        videos: selectedVideos
+    }, (response) => {
+        if (response && response.success) {
+            showStatus(`${selectedVideos.length} دانلود شروع شد! برای مشاهده پیشرفت روی دکمه "دانلودها" کلیک کنید`, 'success');
+            downloadButton.disabled = false;
 
-            // Add delay between downloads to avoid overwhelming the browser
-            if (downloadedCount < selectedVideos.length) {
-                await delay(1000);
-            }
-        } catch (error) {
-            console.error('Download error:', error);
+            // Uncheck all after starting downloads
+            setTimeout(() => {
+                deselectAll();
+            }, 2000);
+
+            // Optionally open downloads page
+            setTimeout(() => {
+                openDownloadsPage();
+            }, 500);
+        } else {
+            showStatus('خطا در شروع دانلود: ' + (response?.error || 'نامشخص'), 'error');
+            downloadButton.disabled = false;
         }
-    }
-
-    showStatus(`${downloadedCount} فایل با موفقیت دانلود شد!`, 'success');
-    downloadButton.disabled = false;
-
-    // Uncheck all after download
-    setTimeout(() => {
-        deselectAll();
-    }, 2000);
-}
-
-function downloadVideo(video) {
-    return new Promise((resolve, reject) => {
-        chrome.downloads.download({
-            url: video.url,
-            filename: sanitizeFilename(video.filename),
-            saveAs: false
-        }, (downloadId) => {
-            if (chrome.runtime.lastError) {
-                console.error('Download failed:', chrome.runtime.lastError);
-                reject(chrome.runtime.lastError);
-            } else {
-                resolve(downloadId);
-            }
-        });
     });
 }
 

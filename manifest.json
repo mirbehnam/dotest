@@ -1,12 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Video Download Manager",
-  "version": "1.0.0",
-  "description": "استخراج و دانلود لینک‌های ویدیویی mkv و mp4 از سایت‌های دانلود",
+  "version": "2.0.0",
+  "description": "استخراج و دانلود چند رشته‌ای لینک‌های ویدیویی با قابلیت pause/resume",
   "permissions": [
     "activeTab",
     "downloads",
-    "scripting"
+    "scripting",
+    "contextMenus",
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>"
