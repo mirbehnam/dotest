@@ -91,11 +91,10 @@ class DownloadManager {
     }
 
     async downloadChunk(downloadId, chunk) {
-        const download = this.downloads.get(downloadId);
-
         try {
             chunk.status = 'downloading';
 
+            const download = this.downloads.get(downloadId);
             const response = await fetch(download.url, {
                 headers: {
                     'Range': `bytes=${chunk.start}-${chunk.end}`
@@ -114,28 +113,44 @@ class DownloadManager {
 
                 if (done) break;
 
-                // Check if paused
-                while (download.status === 'paused') {
+                // Check if paused - always get fresh state from Map
+                let currentDownload = this.downloads.get(downloadId);
+                if (currentDownload && currentDownload.status === 'paused') {
+                    console.log(`Chunk ${chunk.index} paused, waiting...`);
+                }
+                while (currentDownload && currentDownload.status === 'paused') {
                     await new Promise(resolve => setTimeout(resolve, 100));
+                    // Re-check status after waiting
+                    currentDownload = this.downloads.get(downloadId);
+                    if (!currentDownload || currentDownload.status !== 'paused') {
+                        console.log(`Chunk ${chunk.index} resumed!`);
+                        break;
+                    }
                 }
 
                 // Check if cancelled
-                if (download.status === 'cancelled') {
+                const cancelCheck = this.downloads.get(downloadId);
+                if (!cancelCheck || cancelCheck.status === 'cancelled') {
                     reader.cancel();
                     throw new Error('Download cancelled');
                 }
 
                 chunks.push(value);
                 chunk.downloaded += value.length;
-                download.downloadedSize += value.length;
 
-                // Calculate speed
-                const elapsed = (Date.now() - download.startTime) / 1000;
-                download.speed = download.downloadedSize / elapsed;
+                // Update download progress - get fresh reference
+                const progressDownload = this.downloads.get(downloadId);
+                if (progressDownload) {
+                    progressDownload.downloadedSize += value.length;
 
-                // Update progress
-                download.progress = (download.downloadedSize / download.totalSize) * 100;
-                this.notifyProgress(downloadId);
+                    // Calculate speed
+                    const elapsed = (Date.now() - progressDownload.startTime) / 1000;
+                    progressDownload.speed = progressDownload.downloadedSize / elapsed;
+
+                    // Update progress
+                    progressDownload.progress = (progressDownload.downloadedSize / progressDownload.totalSize) * 100;
+                    this.notifyProgress(downloadId);
+                }
             }
 
             // Combine chunk data
@@ -243,32 +258,48 @@ class DownloadManager {
 
                 if (done) break;
 
-                // Check if paused
-                while (download.status === 'paused') {
+                // Check if paused - always get fresh state
+                let currentDownload = this.downloads.get(downloadId);
+                if (currentDownload && currentDownload.status === 'paused') {
+                    console.log(`Download ${downloadId} paused, waiting...`);
+                }
+                while (currentDownload && currentDownload.status === 'paused') {
                     await new Promise(resolve => setTimeout(resolve, 100));
+                    // Re-check status after waiting
+                    currentDownload = this.downloads.get(downloadId);
+                    if (!currentDownload || currentDownload.status !== 'paused') {
+                        console.log(`Download ${downloadId} resumed!`);
+                        break;
+                    }
                 }
 
                 // Check if cancelled
-                if (download.status === 'cancelled') {
+                const cancelCheck = this.downloads.get(downloadId);
+                if (!cancelCheck || cancelCheck.status === 'cancelled') {
                     reader.cancel();
                     throw new Error('Download cancelled');
                 }
 
                 chunks.push(value);
                 receivedLength += value.length;
-                download.downloadedSize = receivedLength;
 
-                if (download.totalSize > 0) {
-                    download.progress = (receivedLength / download.totalSize) * 100;
-                } else {
-                    download.progress = 0;
+                // Update progress - get fresh reference
+                const progressDownload = this.downloads.get(downloadId);
+                if (progressDownload) {
+                    progressDownload.downloadedSize = receivedLength;
+
+                    if (progressDownload.totalSize > 0) {
+                        progressDownload.progress = (receivedLength / progressDownload.totalSize) * 100;
+                    } else {
+                        progressDownload.progress = 0;
+                    }
+
+                    // Calculate speed
+                    const elapsed = (Date.now() - progressDownload.startTime) / 1000;
+                    progressDownload.speed = receivedLength / elapsed;
+
+                    this.notifyProgress(downloadId);
                 }
-
-                // Calculate speed
-                const elapsed = (Date.now() - download.startTime) / 1000;
-                download.speed = receivedLength / elapsed;
-
-                this.notifyProgress(downloadId);
             }
 
             // Combine chunks
@@ -314,7 +345,10 @@ class DownloadManager {
         const download = this.downloads.get(downloadId);
         if (download && download.status === 'downloading') {
             download.status = 'paused';
+            console.log(`Download ${downloadId} paused`);
             this.notifyProgress(downloadId);
+        } else {
+            console.log(`Cannot pause download ${downloadId}, current status: ${download?.status}`);
         }
     }
 
@@ -322,7 +356,10 @@ class DownloadManager {
         const download = this.downloads.get(downloadId);
         if (download && download.status === 'paused') {
             download.status = 'downloading';
+            console.log(`Download ${downloadId} resumed`);
             this.notifyProgress(downloadId);
+        } else {
+            console.log(`Cannot resume download ${downloadId}, current status: ${download?.status}`);
         }
     }
 
